@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedSafe - Native Android Medication Reminder & Compliance Tracker</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="background-glows">
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+    </div>
+
+    <div class="container">
+        <!-- Main Portfolio Section -->
+        <header class="portfolio-header">
+            <div class="header-logo">
+                <i class="fa-solid fa-shield-halved brand-icon-glow"></i>
+                <h1>MedSafe</h1>
+            </div>
+            <p class="subtitle">Offline-First Native Android Medication Compliance System</p>
+            <div class="tags-container">
+                <span class="badge"><i class="fa-brands fa-android"></i> Android SDK</span>
+                <span class="badge"><i class="fa-solid fa-code"></i> Kotlin</span>
+                <span class="badge"><i class="fa-solid fa-database"></i> Room Database</span>
+                <span class="badge"><i class="fa-solid fa-clock"></i> AlarmManager</span>
+                <span class="badge"><i class="fa-solid fa-bell"></i> BroadcastReceiver</span>
+            </div>
+            <div class="contact-links">
+                <a href="https://github.com/anant" target="_blank" id="btn-github"><i class="fa-brands fa-github"></i> GitHub Codebase</a>
+                <a href="mailto:anant@example.com" id="btn-email"><i class="fa-solid fa-envelope"></i> Contact Dev</a>
+                <a href="#" class="btn-disabled" title="Mock APK for presentation purposes"><i class="fa-solid fa-download"></i> Download Mock APK</a>
+            </div>
+        </header>
+
+        <main class="main-layout">
+            <!-- Left Side: Architectural & Code Specs -->
+            <section class="code-showcase">
+                <div class="card glass">
+                    <h2><i class="fa-solid fa-gears icon-accent"></i> Architecture Overview</h2>
+                    <p>
+                        <strong>MedSafe</strong> is designed as a secure, offline-first medication companion for Android. It ensures patients never miss crucial dosages by combining scheduled background intents with state persistence and local database operations.
+                    </p>
+                    
+                    <div class="tab-container">
+                        <div class="tabs">
+                            <button class="tab-btn active" data-tab="db"><i class="fa-solid fa-database"></i> Room DB</button>
+                            <button class="tab-btn" data-tab="scheduler"><i class="fa-solid fa-clock"></i> Alarm Scheduler</button>
+                            <button class="tab-btn" data-tab="receivers"><i class="fa-solid fa-bell"></i> Broadcast Handlers</button>
+                        </div>
+                        
+                        <div class="tab-content active" id="tab-db">
+                            <h3>Reliable Schema Modeling</h3>
+                            <p>
+                                The database relies on two interrelated SQLite tables via Android Room. All updates, such as logging compliance, run asynchronously on background threads using Kotlin coroutines.
+                            </p>
+                            <pre><code class="language-kotlin">// Medicine.kt Entity
+@Entity(tableName = "medicines")
+data class Medicine(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
+    val dosage: String,
+    val timeInMinutes: Int, 
+    val type: String = "Pill", // Pill, Syrup, Injection
+    val stock: Int = 0,
+    val isActive: Boolean = true
+)
+
+// DoseLog.kt Entity (Logs medication status)
+@Entity(tableName = "dose_logs")
+data class DoseLog(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val medicineId: Int,
+    val scheduledTime: Long,
+    val takenTime: Long? = null,
+    val status: String // PENDING, TAKEN, MISSED
+)</code></pre>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-scheduler">
+                            <h3>Exact Time Triggering</h3>
+                            <p>
+                                Android restricts background execution to save battery. MedSafe uses exact alarm APIs (`setExactAndAllowWhileIdle`) along with permission verification to guarantee callbacks even if the device is in Doze mode.
+                            </p>
+                            <pre><code class="language-kotlin">// AlarmScheduler.kt
+fun scheduleReminder(medicine: Medicine) {
+    val intent = Intent(context, ReminderReceiver::class.java).apply {
+        putExtra("MEDICINE_ID", medicine.id)
+        putExtra("MEDICINE_NAME", medicine.name)
+    }
+    val pendingIntent = PendingIntent.getBroadcast(
+        context, medicine.id, intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+    val calendar = Calendar.getInstance().apply {
+        val hour = medicine.timeInMinutes / 60
+        val minute = medicine.timeInMinutes % 60
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+        if (timeInMillis <= System.currentTimeMillis()) {
+            add(Calendar.DAY_OF_YEAR, 1)
+        }
+    }
+    alarmManager.setExactAndAllowWhileIdle(
+        AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent
+    )
+}</code></pre>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-receivers">
+                            <h3>Background Receivers</h3>
+                            <p>
+                                The app splits logic into separate Broadcasters for responsive state handling:
+                            </p>
+                            <ul>
+                                <li><strong>ReminderReceiver</strong>: Creates a new pending log, presents a high-importance notification banner, and triggers a 1-hour missed check alarm.</li>
+                                <li><strong>MissedDoseReceiver</strong>: Triggers 1 hour after the dose schedule. If the status remains pending, it is marked missed. It then evaluates if the user missed 3 consecutive doses to fire an Emergency warning.</li>
+                                <li><strong>ActionReceiver</strong>: Intercepts click broadcasts from the notification drawer, allowing users to record a dose as taken immediately without opening the main UI.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card glass simulator-controls">
+                    <h2><i class="fa-solid fa-sliders icon-accent"></i> Interactive Event Simulator</h2>
+                    <p>Use these system-level triggers to test the background architecture inside the simulated phone mockup:</p>
+                    <div class="control-grid">
+                        <button id="btn-trigger-alarm" class="btn btn-primary">
+                            <i class="fa-solid fa-bell"></i> Trigger Scheduled Alarm
+                        </button>
+                        <button id="btn-fast-forward" class="btn btn-secondary">
+                            <i class="fa-solid fa-forward"></i> Fast-Forward 1 Hour
+                        </button>
+                        <button id="btn-trigger-emergency" class="btn btn-danger">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Force Emergency Alert
+                        </button>
+                        <button id="btn-reset-db" class="btn btn-outline">
+                            <i class="fa-solid fa-rotate-left"></i> Reset Simulated DB
+                        </button>
+                    </div>
+                    <div class="console-box">
+                        <div class="console-header">
+                            <span>System Logs</span>
+                            <span class="indicator active">● Running</span>
+                        </div>
+                        <div id="console-logs" class="console-body">
+                            <div class="log-line text-system">[System]: Mock Android Environment initialized.</div>
+                            <div class="log-line text-system">[System]: Room Database loaded with default medications.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: Phone Emulator -->
+            <section class="phone-wrapper">
+                <div class="phone-frame shadow-2xl">
+                    <div class="phone-screen">
+                        <!-- Camera Notch -->
+                        <div class="notch"></div>
+                        
+                        <!-- Status Bar -->
+                        <div class="status-bar">
+                            <span id="phone-time" class="status-time">10:30 AM</span>
+                            <div class="status-icons">
+                                <i class="fa-solid fa-wifi"></i>
+                                <i class="fa-solid fa-signal"></i>
+                                <i class="fa-solid fa-battery-three-quarters"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- System Notification Drawer (Overlay) -->
+                        <div id="notification-drawer" class="notification-drawer hidden">
+                            <div class="notification-header">
+                                <div class="app-info">
+                                    <i class="fa-solid fa-shield-halved notification-app-icon"></i>
+                                    <span>MedSafe</span>
+                                </div>
+                                <span class="notif-time">Just Now</span>
+                            </div>
+                            <div class="notification-body">
+                                <h4>Medicine Reminder</h4>
+                                <p id="notification-text">It's time to take your medicine: Lisinopril</p>
+                            </div>
+                            <div class="notification-actions">
+                                <button id="btn-notif-taken" class="notif-btn notif-btn-success">
+                                    <i class="fa-solid fa-check"></i> Taken
+                                </button>
+                                <button id="btn-notif-snooze" class="notif-btn notif-btn-neutral">
+                                    <i class="fa-solid fa-clock"></i> Snooze
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Full Screen Emergency Overlay -->
+                        <div id="emergency-overlay" class="emergency-overlay hidden">
+                            <div class="emergency-content">
+                                <i class="fa-solid fa-triangle-exclamation emergency-icon anim-pulse"></i>
+                                <h3>CRITICAL ALERT</h3>
+                                <p>You have missed 3 consecutive doses of your medication! Please take your medicine immediately or contact your physician.</p>
+                                <button id="btn-close-emergency" class="btn btn-danger">Acknowledge</button>
+                            </div>
+                        </div>
+
+                        <!-- App Layout Container -->
+                        <div class="app-container">
+                            <div class="app-header">
+                                <div class="app-title-container">
+                                    <i class="fa-solid fa-shield-halved text-emerald"></i>
+                                    <h3 id="app-screen-title">Dashboard</h3>
+                                </div>
+                                <div class="compliance-ring-mini" id="compliance-mini-ring" title="Medication Adherence Compliance">
+                                    <span id="compliance-percent">100%</span>
+                                </div>
+                            </div>
+                            
+                            <!-- App Content Area (Dynamic Screens) -->
+                            <div class="app-content">
+                                <!-- Home Screen -->
+                                <div id="screen-home" class="app-screen active">
+                                    <div class="welcome-banner">
+                                        <div class="welcome-text">
+                                            <span class="today-date" id="date-label">Today, June 20</span>
+                                            <h2>Welcome Back!</h2>
+                                        </div>
+                                    </div>
+
+                                    <div class="compliance-card">
+                                        <div class="compliance-details">
+                                            <h4>Daily Compliance</h4>
+                                            <p id="compliance-text">Perfect compliance today! Keep it up.</p>
+                                        </div>
+                                        <div class="compliance-progress">
+                                            <svg width="60" height="60" viewBox="0 0 36 36" class="circular-chart">
+                                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                                <path id="compliance-progress-path" class="circle" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                            </svg>
+                                            <div class="progress-val" id="progress-val-text">100%</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="section-title">
+                                        <h4>Today's Medications</h4>
+                                        <span class="meds-count-badge" id="active-meds-count">0</span>
+                                    </div>
+
+                                    <div id="medicines-list" class="medicines-list">
+                                        <!-- Medicines injected here by app.js -->
+                                    </div>
+                                </div>
+
+                                <!-- Add Medicine Screen -->
+                                <div id="screen-add" class="app-screen">
+                                    <h3>Add Medication</h3>
+                                    <form id="add-medicine-form" class="add-med-form" onsubmit="return false;">
+                                        <div class="form-group">
+                                            <label for="med-name">Medicine Name</label>
+                                            <input type="text" id="med-name" required placeholder="e.g. Amoxicillin">
+                                        </div>
+                                        
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="med-dosage">Dosage</label>
+                                                <input type="text" id="med-dosage" required placeholder="e.g. 500mg, 1 pill">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="med-type">Type</label>
+                                                <select id="med-type">
+                                                    <option value="Pill">💊 Pill</option>
+                                                    <option value="Syrup">🧴 Syrup</option>
+                                                    <option value="Injection">💉 Injection</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="med-time">Time</label>
+                                                <input type="time" id="med-time" required value="08:00">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="med-stock">Starting Stock</label>
+                                                <input type="number" id="med-stock" required min="1" value="30">
+                                            </div>
+                                        </div>
+
+                                        <button type="submit" id="btn-save-medicine" class="btn btn-primary btn-block">
+                                            <i class="fa-solid fa-circle-plus"></i> Save Medication
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <!-- History Screen -->
+                                <div id="screen-history" class="app-screen">
+                                    <div class="history-header">
+                                        <h3>Compliance Log</h3>
+                                        <button id="btn-clear-history" class="btn-text-only" title="Reset Logs"><i class="fa-solid fa-trash-can"></i> Clear</button>
+                                    </div>
+                                    <p class="history-sub">Verification audit of all past scheduled reminders.</p>
+                                    
+                                    <div id="history-list" class="history-list">
+                                        <!-- Dose log items injected here by app.js -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- App Bottom Navigation -->
+                            <div class="app-nav">
+                                <button class="nav-tab active" data-screen="home">
+                                    <i class="fa-solid fa-house"></i>
+                                    <span>Home</span>
+                                </button>
+                                <button class="nav-tab fab-btn" data-screen="add" id="nav-btn-add">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                                <button class="nav-tab" data-screen="history">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                    <span>History</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="portfolio-footer">
+            <p>Designed and Implemented as part of the MedSafe Native Android Project Portfolio &bull; 2026</p>
+        </footer>
+    </div>
+
+    <!-- Script File -->
+    <script src="app.js"></script>
+</body>
+</html>
