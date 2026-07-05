@@ -1,43 +1,64 @@
-# MedSafe - Android Medication Compliance Tracker & Web Simulator
+# 📱 MedSafe - Android Medication Compliance Tracker & Web Simulator
 
-A high-fidelity interactive showcase and web simulator for **MedSafe**, an offline-first native Android medication reminder application built with Kotlin, Room Database, and AlarmManager.
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple.svg?style=flat&logo=kotlin)](https://kotlinlang.org)
+[![Android SDK](https://img.shields.io/badge/Android-SDK%2034-green.svg?style=flat&logo=android)](https://developer.android.com)
+[![Room Database](https://img.shields.io/badge/SQLite-Room%20DB-blue.svg?style=flat&logo=sqlite)](https://developer.android.com/training/data-storage/room)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-This repository hosts a web-based portfolio landing page and mobile device emulator designed to let recruiters, developers, and users interact with the app's features directly in their browser.
+An offline-first, native Android medication compliance tracker built with **Kotlin, Room SQLite Database, and AlarmManager**. It ensures patients never miss a dose, automates stock management, logs history, and alerts contacts during consecutive misses.
 
-## 🌟 Interactive Features
-*   **Active Dashboard**: View today's remaining medications, dosages, types (pills, syrups, injections), and a real-time medication adherence compliance ring.
-*   **Add Medicine Form**: Simulate inserting new medicines into the database, setting alarm schedules, and setting starting stock counts.
-*   **Exact Alarm Notifications**: Trigger simulated scheduled alarms to see the high-priority lock-screen notification drawer slide down with interactive "Taken" and "Snooze" actions.
-*   **Compliance Log (History)**: Track compliance logs indicating whether a dose was Taken (with timestamp) or Missed.
-*   **Missed Dose & Stock Management**: Deducts stock upon marking a dose as taken. Auto-flags pending doses as missed after a simulated 1-hour timeout.
-*   **Critical Emergency Alerts**: Simulates triggering a full-screen system alert warning when 3 consecutive doses of a medication are missed.
+This repository also hosts a **high-fidelity web portfolio simulator** that lets users, developers, and recruiters interact with the app's native features directly in their web browser without installing the APK.
 
-## 🛠️ Tech Stack Shown
-The native Android app's architecture and source code is documented on this landing page, focusing on:
-*   **Android SDK & Kotlin Coroutines** for background threading.
-*   **Room Persistence Library (SQLite)** database schemas.
-*   **AlarmManager** with exact alarms (`setExactAndAllowWhileIdle`) for reliability in Doze mode.
-*   **BroadcastReceiver** channels for notification actions.
+👉 **[Launch Live Web Simulator Demo](https://anant-sketch.github.io/medsafe-portfolio)**
 
 ---
 
-## 🚀 How to Host This on GitHub Pages
+## 🌟 Core Features
 
-You can publish this interactive simulator instantly to the web for free using GitHub Pages:
+### 📅 Smart Dashboards
+*   **Active Schedules**: Lists today's remaining medications, dosages, and administration details.
+*   **Adherence Rings**: An interactive, dynamic compliance ring visualizing user medication compliance rates.
 
-1.  **Create a new empty repository** on your GitHub account named `medsafe-portfolio`.
-2.  **Initialize Git** in this directory and push:
-    ```bash
-    git init
-    git add .
-    git commit -m "Initial commit of MedSafe web portfolio and simulator"
-    git branch -M main
-    git remote add origin https://github.com/YOUR_USERNAME/medsafe-portfolio.git
-    git push -u origin main
-    ```
-3.  **Enable GitHub Pages**:
-    *   Go to your repository settings on GitHub.
-    *   Navigate to the **Pages** section in the left sidebar.
-    *   Under **Build and deployment**, select **Deploy from a branch**.
-    *   Choose the `main` branch and click **Save**.
-4.  Within a few minutes, your site will be live at `https://YOUR_USERNAME.github.io/medsafe-portfolio/`!
+### ⏰ Reliable Exact Alarms
+*   Uses Android's `AlarmManager` with exact scheduling (`setExactAndAllowWhileIdle`) to ensure alerts trigger reliably even when the device enters Doze battery-saving mode.
+*   Background broadcast channels post high-importance notification banners.
+
+### 🕒 Automatic Miss Logs & Grace Period
+*   Includes a background receiver that triggers 1 hour after a scheduled dose. 
+*   If the dose is not marked as taken within the **1-hour grace period**, the app automatically logs it as **Missed**.
+
+### 🚨 Critical Safety Alert (Safety Net)
+*   Monitors consecutive medication logs.
+*   If a user misses **3 consecutive doses** of a critical medication, it triggers a system-level emergency warning page.
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+The native Android app is architected using **Android Architecture Components** following clean code principles:
+
+*   **View-Model-Repository** pattern for separation of concerns.
+*   **Room Database** (SQLite abstraction) for fast, structured local storage.
+*   **Coroutines** for asynchronous background thread operations.
+*   **BroadcastReceivers** for exact alarm monitoring and notification action intercepts (e.g. marking "Taken" from notification drawer).
+
+---
+
+## 📂 Repository Structure
+
+*   `/app`: Native Android Studio gradle codebase containing Kotlin source code.
+*   `/public`, `index.html`, `app.js`: High-fidelity web simulator landing page showing mockup device views.
+
+---
+
+## 🚀 How to Run Locally
+
+### Native Android App
+1. Open **Android Studio** and click *Open*.
+2. Select the `/app` folder inside this repository.
+3. Enable **USB Debugging** on your Android device and connect it to your PC.
+4. Select your phone in the top toolbar and press the green **Run (Play)** icon.
+
+### Web Portfolio Simulator
+1. Navigate to the root directory.
+2. Double-click **`index.html`** or open it via a local static server to test the browser simulator.
